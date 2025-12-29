@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red Player Pro</title>
+    <!-- وەشانی جێگیری Tailwind CSS بۆ ئەوەی لە GitHub کێشەی نەبێت -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* فۆنت */
+        @import url('https://fonts.googleapis.com/css2?family=Rudaw&display=swap');
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f0f0f;
+        }
+
+        /* ستایلی تایبەت بۆ ڕاکێشەرەکان (Sliders) */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #ef4444; /* Red-500 */
+            cursor: pointer;
+            margin-top: -5px; 
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+        
+        /* شاردنەوەی کۆنتڕۆڵەکان */
+        .controls-hidden {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+
+        /* ئەنیمەیشنی لۆدینگ */
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(239, 68, 68, 0.3);
+            border-radius: 50%;
+            border-top-color: #ef4444;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen w-screen overflow-hidden bg-black text-white">
+
+    <!-- Container -->
+    <div id="player-container" class="relative w-full max-w-4xl aspect-video bg-black shadow-2xl shadow-red-900/20 rounded-xl overflow-hidden group select-none">
+        
+        <!-- Video Source (Google's Reliable Server) -->
+        <video 
+            id="video" 
+            class="w-full h-full object-cover"
+            poster="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/TearsOfSteel.jpg"
+            src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4">
+        </video>
+
+        <!-- Loading Spinner -->
+        <div id="loader" class="absolute inset-0 flex items-center justify-center bg-black/50 z-10 hidden">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Big Play Button (Center) -->
+        <div id="big-play-btn" class="absolute inset-0 flex items-center justify-center z-0 cursor-pointer bg-black/20 hover:bg-black/10 transition">
+            <div class="bg-red-600/90 text-white p-6 rounded-full shadow-lg shadow-red-600/50 backdrop-blur-sm transform transition hover:scale-110 active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 translate-x-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Floating Controls Bar -->
+        <div id="controls" class="absolute bottom-4 left-4 right-4 bg-zinc-900/90 backdrop-blur-md rounded-2xl p-3 flex flex-col gap-2 transition-all duration-300 z-20 shadow-lg border border-white/10 controls-hidden group-hover:opacity-100 group-hover:transform-none group-hover:pointer-events-auto">
+            
+            <!-- Progress Bar -->
+            <div class="w-full flex items-center gap-3">
+                <span id="current-time" class="text-xs font-mono text-gray-300 w-10 text-center">0:00</span>
+                <div class="relative w-full h-1 group/bar">
+                    <div id="buffer-bar" class="absolute top-0 left-0 h-full bg-white/20 rounded w-0"></div>
+                    <div id="progress-fill" class="absolute top-0 left-0 h-full bg-red-600 rounded w-0 shadow-[0_0_10px_rgba(220,38,38,0.7)]"></div>
+                    <input type="range" id="seek-slider" min="0" max="100" value="0" step="0.1" class="absolute -top-1.5 w-full opacity-0 hover:opacity-100 cursor-pointer z-10 h-4">
+                </div>
+                <span id="duration" class="text-xs font-mono text-gray-300 w-10 text-center">0:00</span>
+            </div>
+
+            <!-- Buttons Row -->
+            <div class="flex items-center justify-between px-1">
+                
+                <div class="flex items-center gap-4">
+                    <!-- Play/Pause -->
+                    <button id="play-pause-btn" class="text-white hover:text-red-500 transition">
+                        <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+
+                    <!-- Volume -->
+                    <div class="flex items-center gap-2 group/vol">
+                        <button id="mute-btn" class="text-gray-300 hover:text-white">
+                            <svg id="vol-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                            <svg id="mute-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
+                        </button>
+                        <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1" class="w-0 group-hover/vol:w-20 transition-all duration-300 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <!-- Speed Control -->
+                    <button id="speed-btn" class="text-xs font-bold text-gray-400 hover:text-red-500 border border-gray-600 rounded px-2 py-1 transition">1x</button>
+                    
+                    <!-- PIP -->
+                    <button id="pip-btn" class="text-gray-300 hover:text-white" title="وێنە لەناو وێنە">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </button>
+
+                    <!-- Fullscreen -->
+                    <button id="fullscreen-btn" class="text-gray-300 hover:text-red-500 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const container = document.getElementById('player-container');
+        const video = document.getElementById('video');
+        const controls = document.getElementById('controls');
+        const playBtn = document.getElementById('play-pause-btn');
+        const bigPlayBtn = document.getElementById('big-play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const loader = document.getElementById('loader');
+        const seekSlider = document.getElementById('seek-slider');
+        const progressFill = document.getElementById('progress-fill');
+        const bufferBar = document.getElementById('buffer-bar');
+        const currentTimeEl = document.getElementById('current-time');
+        const durationEl = document.getElementById('duration');
+        const volumeSlider = document.getElementById('volume-slider');
+        const muteBtn = document.getElementById('mute-btn');
+        const volIcon = document.getElementById('vol-icon');
+        const muteIcon = document.getElementById('mute-icon');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const speedBtn = document.getElementById('speed-btn');
+        const pipBtn = document.getElementById('pip-btn');
+
+        let isPlaying = false;
+        let isDragging = false;
+        let hideControlsTimeout;
+
+        // --- Functions ---
+
+        // Play / Pause
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+                isPlaying = true;
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+                bigPlayBtn.classList.add('hidden');
+            } else {
+                video.pause();
+                isPlaying = false;
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+                bigPlayBtn.classList.remove('hidden');
+                showControls(); // Show controls when paused
+            }
+        }
+
+        // Format Time (mm:ss)
+        function formatTime(time) {
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        // Update Progress
+        function updateProgress() {
+            if (!isDragging) {
+                const percent = (video.currentTime / video.duration) * 100;
+                seekSlider.value = isNaN(percent) ? 0 : percent;
+                progressFill.style.width = `${isNaN(percent) ? 0 : percent}%`;
+                currentTimeEl.innerText = formatTime(video.currentTime);
+            }
+            
+            // Update Buffer
+            if(video.buffered.length > 0) {
+                const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                const duration = video.duration;
+                if(duration > 0) {
+                    bufferBar.style.width = `${(bufferedEnd / duration) * 100}%`;
+                }
+            }
+        }
+
+        // Seek Video
+        function setVideoProgress() {
+            const time = (seekSlider.value / 100) * video.duration;
+            video.currentTime = time;
+            progressFill.style.width = `${seekSlider.value}%`;
+        }
+
+        // Volume
+        function updateVolume() {
+            if(video.muted) {
+                video.muted = false;
+                muteIcon.classList.add('hidden');
+                volIcon.classList.remove('hidden');
+            }
+            video.volume = volumeSlider.value;
+            if(video.volume === 0) {
+                muteIcon.classList.remove('hidden');
+                volIcon.classList.add('hidden');
+            }
+        }
+
+        function toggleMute() {
+            video.muted = !video.muted;
+            if(video.muted) {
+                volumeSlider.value = 0;
+                muteIcon.classList.remove('hidden');
+                volIcon.classList.add('hidden');
+            } else {
+                volumeSlider.value = 1;
+                video.volume = 1;
+                muteIcon.classList.add('hidden');
+                volIcon.classList.remove('hidden');
+            }
+        }
+
+        // Fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                if(container.requestFullscreen) container.requestFullscreen();
+                else if(container.webkitRequestFullscreen) container.webkitRequestFullscreen(); // Safari
+            } else {
+                if(document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // Speed Control
+        function changeSpeed() {
+            let currentRate = video.playbackRate;
+            if (currentRate === 1) video.playbackRate = 1.5;
+            else if (currentRate === 1.5) video.playbackRate = 2;
+            else video.playbackRate = 1;
+            
+            speedBtn.innerText = video.playbackRate + 'x';
+        }
+
+        // PIP
+        async function togglePip() {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (document.pictureInPictureEnabled) {
+                await video.requestPictureInPicture();
+            }
+        }
+
+        // Auto Hide Controls
+        function showControls() {
+            controls.classList.remove('controls-hidden');
+            container.style.cursor = 'default';
+            clearTimeout(hideControlsTimeout);
+            if (!video.paused) {
+                hideControlsTimeout = setTimeout(() => {
+                    controls.classList.add('controls-hidden');
+                    container.style.cursor = 'none';
+                }, 3000);
+            }
+        }
+
+        // --- Event Listeners ---
+        
+        playBtn.addEventListener('click', togglePlay);
+        bigPlayBtn.addEventListener('click', togglePlay);
+        video.addEventListener('click', togglePlay);
+        
+        video.addEventListener('timeupdate', updateProgress);
+        video.addEventListener('loadedmetadata', () => {
+            durationEl.innerText = formatTime(video.duration);
+        });
+        
+        video.addEventListener('waiting', () => loader.classList.remove('hidden'));
+        video.addEventListener('playing', () => loader.classList.add('hidden'));
+
+        seekSlider.addEventListener('mousedown', () => isDragging = true);
+        seekSlider.addEventListener('mouseup', () => { isDragging = false; setVideoProgress(); });
+        seekSlider.addEventListener('input', () => {
+             // Visual update only while dragging
+             progressFill.style.width = `${seekSlider.value}%`;
+             currentTimeEl.innerText = formatTime((seekSlider.value / 100) * video.duration);
+        });
+
+        volumeSlider.addEventListener('input', updateVolume);
+        muteBtn.addEventListener('click', toggleMute);
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        speedBtn.addEventListener('click', changeSpeed);
+        pipBtn.addEventListener('click', togglePip);
+
+        // Mouse movement to show/hide controls
+        container.addEventListener('mousemove', showControls);
+        container.addEventListener('mouseleave', () => {
+            if(!video.paused) controls.classList.add('controls-hidden');
+        });
+
+        // Double Click for Fullscreen
+        container.addEventListener('dblclick', toggleFullscreen);
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'Space' || e.code === 'KeyK') { e.preventDefault(); togglePlay(); }
+            if(e.code === 'ArrowRight') { video.currentTime += 5; showControls(); }
+            if(e.code === 'ArrowLeft') { video.currentTime -= 5; showControls(); }
+            if(e.code === 'KeyF') toggleFullscreen();
+            if(e.code === 'KeyM') toggleMute();
+        });
+
+    </script>
+</body>
+</html>
